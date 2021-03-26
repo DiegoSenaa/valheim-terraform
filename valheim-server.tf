@@ -20,14 +20,11 @@ provider "google" {
 resource "google_compute_address" "static" {
   name = "valheim-terraform-ip"
   address_type = "EXTERNAL"
-  ## Perguntar
-  ##network_tier = "STANDARD"
 }
 
 # Criação de regras do firewall
 resource "google_compute_firewall" "default" {
   name    = "valheim-terraform-firewall"
-  # network = google_compute_network.default.name
   network = "default"
 
   allow {
@@ -42,10 +39,6 @@ resource "google_compute_firewall" "default" {
 
   source_tags = ["valheim-terraform"]
 }
-
-# resource "google_compute_network" "default" {
-#   name = "valheim-terraform-network"
-# }
 
 # Cria uma VM no Google Cloud
 resource "google_compute_instance" "valheim-terraform" {
@@ -63,7 +56,6 @@ resource "google_compute_instance" "valheim-terraform" {
   network_interface {
     # A default network is created for all GCP projects
     network = "default"
-    # network = google_compute_network.default.name
     access_config {
       nat_ip = google_compute_address.static.address
     }
