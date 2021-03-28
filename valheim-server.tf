@@ -11,9 +11,17 @@ provider "google" {
 
   credentials = file("valheim-306722-2df11616a1bf.json")
 
-  project = "valheim-306722"
-  region  = "southamerica-east1"
-  zone    = "southamerica-east1-a"
+  project = var.project
+  region  = var.region
+  zone    = var.zone
+}
+
+resource "tls_private_key" "valheim-ssh-key" {
+  algorithm   = "RSA"
+}
+
+locals {
+  ssh_pub_key_without_new_line = replace(tls_private_key.valheim-ssh-key.public_key_openssh, "\n", "")
 }
 
 # Criação do ip externo
@@ -38,19 +46,27 @@ resource "google_compute_firewall" "default" {
   }
 
   source_tags = ["valheim-terraform"]
+  
 }
 
 # Cria uma VM no Google Cloud
 resource "google_compute_instance" "valheim-terraform" {
+
   name         = "valheim-terraform"
   machine_type = "e2-standard-2"
-  tags         = ["valheim-terraform"]
+  tags         = ["valheim-terraform","http-server","https-server"]
+
 
   # Defini a Imagem da VM
   boot_disk {
     initialize_params {
       image = "ubuntu-1804-bionic-v20201014"
     }
+
+  }
+
+  metadata = {
+     ssh-keys = "${var.user}:${local.ssh_pub_key_without_new_line} ${var.user}"
   }
 
   network_interface {
@@ -59,5 +75,18 @@ resource "google_compute_instance" "valheim-terraform" {
     access_config {
       nat_ip = google_compute_address.static.address
     }
+
   }
+
+  provisioner "remote-exec" {
+    connection { 
+      host = self.network_interface[0].access_config[0].nat_ip
+      type    = "ssh"
+      user    = var.user
+      timeout = "500s"
+      private_key = tls_private_key.valheim-ssh-key.private_key_pem
+    }
+    inline = ["touch teste.txt"]
+   }
+
 }
